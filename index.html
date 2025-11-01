@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Citoyen Survivor — V1</title>
+  <link rel="stylesheet" href="assets/styles/main.css" />
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="screen"></canvas>
+    <canvas id="crt" class="crt"></canvas>
+    <canvas id="grain" class="grain"></canvas>
+
+    <div class="dashHalo" id="dashHalo"></div>
+
+    <div class="hud">
+      <div class="chip" id="hudTime"><span>⏳</span><span id="time">00:00</span></div>
+      <div class="chip" id="hudLevel"><span>⬆️</span><span id="level">1</span></div>
+      <div class="chip" id="hudBallot"><span>🗳️</span><span id="ballots">0</span></div>
+      <div class="chip" id="hudDash"><span>⚡</span><span id="dash">0</span></div>
+      <div class="chip" id="hudBomb"><span>📣</span><span id="bomb">1</span></div>
+    </div>
+    <button class="pauseBtn" id="pause" title="Pause">⏸️</button>
+
+    <div class="veil" id="start">
+      <div class="card">
+        <div class="title">CITOYEN SURVIVOR · V1</div>
+        <p class="subtitle">
+          Mode survie infini : intensité croissante, crises, upgrades visuelles.<br />
+          Mobile : joystick + ⚡ dash, 📣 appel citoyen.
+        </p>
+        <button class="btn" id="play">▶️ LANCER</button>
+        <div class="panel">
+          <pre>
+Contrôles : WASD / ZQSD / flèches, souris pour viser.
+Dash ⚡ (Space / Shift) — Appel 📣 (E).
+Pause = P ou bouton. Bestiaire dans la pause.
+          </pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="veil overlay-hidden" id="overlay">
+      <div class="card" id="overlayCard"></div>
+    </div>
+
+    <div class="joystick" id="joy"><div class="stick" id="stick"></div></div>
+    <div class="actions">
+      <div class="round" id="dashBtn" title="Dash">⚡</div>
+      <div class="round" id="bombBtn" title="Appel citoyen">📣</div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/main.js"></script>
+</body>
+</html>
