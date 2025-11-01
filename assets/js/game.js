@@ -1,4 +1,4 @@
-import { VIRT_W, VIRT_H, SCALE_BASE, PAL } from './config.js';
+import { VIRT_W, VIRT_H, PAL } from './config.js';
 import { SPRITES, ENEMY_SPR } from './sprites.js';
 import { playSound, resumeAudioContext } from './audio.js';
 import { createInitialState, getXpTarget } from './state.js';
@@ -22,30 +22,28 @@ export function initGame() {
   const g = off.getContext('2d');
   g.imageSmoothingEnabled = false;
 
-  let W = 0, H = 0, S = SCALE_BASE;
+  let W = 0, H = 0;
   function fit() {
     W = innerWidth;
     H = innerHeight;
-    S = Math.max(1, Math.floor(Math.min(W / VIRT_W, H / VIRT_H)));
-    const viewW = VIRT_W * S;
-    const viewH = VIRT_H * S;
+    const scale = Math.max(1, Math.floor(Math.min(W / VIRT_W, H / VIRT_H)));
+    const viewW = VIRT_W * scale;
+    const viewH = VIRT_H * scale;
     screen.width = viewW;
     screen.height = viewH;
-    screen.style.width = viewW + 'px';
-    screen.style.height = viewH + 'px';
+    screen.style.width = W + 'px';
+    screen.style.height = H + 'px';
     crt.width = viewW;
     crt.height = viewH;
-    crt.style.width = viewW + 'px';
-    crt.style.height = viewH + 'px';
+    crt.style.width = W + 'px';
+    crt.style.height = H + 'px';
     grain.width = viewW;
     grain.height = viewH;
-    grain.style.width = viewW + 'px';
-    grain.style.height = viewH + 'px';
-    const left = Math.floor((W - viewW) / 2);
-    const top = Math.floor((H - viewH) / 2);
+    grain.style.width = W + 'px';
+    grain.style.height = H + 'px';
     screen.style.position = crt.style.position = grain.style.position = 'fixed';
-    screen.style.left = crt.style.left = grain.style.left = left + 'px';
-    screen.style.top = crt.style.top = grain.style.top = top + 'px';
+    screen.style.left = crt.style.left = grain.style.left = '0px';
+    screen.style.top = crt.style.top = grain.style.top = '0px';
   }
   addEventListener('resize', fit);
   fit();
@@ -63,7 +61,7 @@ export function initGame() {
   }
 
   function spawnOrb(x, y, value) {
-    state.orbs.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, value, life: 12 });
+    state.orbs.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, value, life: 18 });
   }
 
   function spawnBallot(x, y) {
@@ -144,6 +142,25 @@ export function initGame() {
     const y = Math.random() < 0.5 ? (Math.random() * VIRT_H) : (Math.random() < 0.5 ? -margin : VIRT_H + margin);
     spawnEnemy('systemic', x, y);
     systemicAlert();
+  }
+
+  function updateAutoAim() {
+    const { player, enemies } = state;
+    if (!enemies.length) return;
+    let closest = null;
+    let bestDist = Infinity;
+    for (const enemy of enemies) {
+      const dx = enemy.x - player.x;
+      const dy = enemy.y - player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        closest = { dx, dy };
+      }
+    }
+    if (closest) {
+      player.angle = Math.atan2(closest.dy, closest.dx);
+    }
   }
 
   function enemyBehavior(enemy, dt) {
@@ -262,18 +279,24 @@ export function initGame() {
   }
 
   function collectOrb(orb, dt) {
-    const dx = state.player.x - orb.x;
-    const dy = state.player.y - orb.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 2) {
+    const player = state.player;
+    const dx = player.x - orb.x;
+    const dy = player.y - orb.y;
+    const dist = Math.hypot(dx, dy) || 0.0001;
+    if (dist < 3) {
       state.xp += orb.value;
       playSound('xp', 0.22, 1.2 + Math.random() * 0.2);
       levelCheck();
       return true;
     }
-    const pull = Math.max(0, state.player.magnet - dist);
-    orb.vx += (dx / (dist || 1)) * pull * dt * 2;
-    orb.vy += (dy / (dist || 1)) * pull * dt * 2;
+    const dirX = dx / dist;
+    const dirY = dy / dist;
+    const attraction = player.magnet + 40;
+    const accel = (attraction / Math.max(dist, 12)) * 35;
+    orb.vx += dirX * accel * dt;
+    orb.vy += dirY * accel * dt;
+    orb.vx *= 0.9;
+    orb.vy *= 0.9;
     orb.x += orb.vx * dt;
     orb.y += orb.vy * dt;
     orb.life -= dt;
@@ -468,13 +491,6 @@ export function initGame() {
   });
   addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
-  let mousePos = { x: VIRT_W / 2, y: VIRT_H / 2 };
-  addEventListener('mousemove', e => {
-    const rect = screen.getBoundingClientRect();
-    mousePos.x = (e.clientX - rect.left) / S;
-    mousePos.y = (e.clientY - rect.top) / S;
-  });
-
   addEventListener('mousedown', e => { if (!state.running && !state.over) startGame(); });
 
   dashBtn.addEventListener('touchstart', e => { e.preventDefault(); triggerDash(); }, { passive: false });
@@ -559,10 +575,7 @@ export function initGame() {
       spawnSystemic();
     }
 
-    if (state.weapon.cooldown > 0) state.weapon.cooldown -= dt; else {
-      spawnProjectile();
-      state.weapon.cooldown = state.weapon.rate;
-    }
+    state.weapon.cooldown = Math.max(0, state.weapon.cooldown - dt);
 
     let inputX = 0, inputY = 0;
     if (keys['arrowleft'] || keys['a'] || keys['q']) inputX -= 1;
@@ -584,7 +597,13 @@ export function initGame() {
     player.y += player.vy * dt;
     player.x = Math.max(6, Math.min(VIRT_W - 6, player.x));
     player.y = Math.max(6, Math.min(VIRT_H - 6, player.y));
-    player.angle = Math.atan2(mousePos.y - player.y, mousePos.x - player.x);
+
+    updateAutoAim();
+
+    if (state.weapon.cooldown <= 0) {
+      spawnProjectile();
+      state.weapon.cooldown = state.weapon.rate;
+    }
 
     if (keys[' '] || keys['shift']) triggerDash();
 
