@@ -1,5 +1,9 @@
-export const VIRT_W = 208;
-export const VIRT_H = 117;
+const BASE_VIRT_W = 208;
+const BASE_VIRT_H = 117;
+
+export const VIRT_W = 256;
+export const VIRT_H = 144;
+export const PLAYFIELD_SCALE = (VIRT_W * VIRT_H) / (BASE_VIRT_W * BASE_VIRT_H);
 export const SCALE_BASE = 3;
 
 export const PAL = {
