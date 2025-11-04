@@ -1,4 +1,4 @@
-import { VIRT_W, VIRT_H, PAL } from './config.js';
+import { VIRT_W, VIRT_H, PAL, PLAYFIELD_SCALE } from './config.js';
 import { SPRITES, ENEMY_SPR } from './sprites.js';
 import { playSound, resumeAudioContext } from './audio.js';
 import { createInitialState, getXpTarget } from './state.js';
@@ -564,7 +564,8 @@ export function initGame() {
     state.spawn.timer -= dt;
     const difficulty = 1 + state.time / 50;
     if (state.spawn.timer <= 0) {
-      state.spawn.timer = Math.max(0.2, 1.4 / difficulty);
+      const spawnRate = difficulty * PLAYFIELD_SCALE;
+      state.spawn.timer = Math.max(0.2, 1.4 / spawnRate);
       const type = pickEnemyType();
       const edge = spawnPoint();
       spawnEnemy(type, edge.x, edge.y);
