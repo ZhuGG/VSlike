@@ -26,24 +26,51 @@ export function initGame() {
   function fit() {
     W = innerWidth;
     H = innerHeight;
-    const scale = Math.max(1, Math.floor(Math.min(W / VIRT_W, H / VIRT_H)));
-    const viewW = VIRT_W * scale;
-    const viewH = VIRT_H * scale;
-    screen.width = viewW;
-    screen.height = viewH;
-    screen.style.width = W + 'px';
-    screen.style.height = H + 'px';
-    crt.width = viewW;
-    crt.height = viewH;
-    crt.style.width = W + 'px';
-    crt.style.height = H + 'px';
-    grain.width = viewW;
-    grain.height = viewH;
-    grain.style.width = W + 'px';
-    grain.style.height = H + 'px';
-    screen.style.position = crt.style.position = grain.style.position = 'fixed';
-    screen.style.left = crt.style.left = grain.style.left = '0px';
-    screen.style.top = crt.style.top = grain.style.top = '0px';
+    const styles = getComputedStyle(document.documentElement);
+    const safeFromVar = (name) => {
+      const value = styles.getPropertyValue(name);
+      const parsed = parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const viewport = window.visualViewport;
+    const viewportSafe = viewport ? {
+      top: viewport.offsetTop,
+      right: Math.max(0, W - viewport.width - viewport.offsetLeft),
+      bottom: Math.max(0, H - viewport.height - viewport.offsetTop),
+      left: viewport.offsetLeft,
+    } : { top: 0, right: 0, bottom: 0, left: 0 };
+    const safeTop = Math.max(safeFromVar('--safe-top'), viewportSafe.top);
+    const safeRight = Math.max(safeFromVar('--safe-right'), viewportSafe.right);
+    const safeBottom = Math.max(safeFromVar('--safe-bottom'), viewportSafe.bottom);
+    const safeLeft = Math.max(safeFromVar('--safe-left'), viewportSafe.left);
+    const usableW = Math.max(1, W - safeLeft - safeRight);
+    const usableH = Math.max(1, H - safeTop - safeBottom);
+    const aspect = usableH / Math.max(1, usableW);
+    let scale = Math.min(usableW / VIRT_W, usableH / VIRT_H);
+    scale = Math.max(1, Math.min(6, scale));
+    const viewW = Math.round(VIRT_W * scale);
+    const viewH = Math.round(VIRT_H * scale);
+    const offsetX = Math.round((usableW - viewW) / 2 + safeLeft);
+    let bias = 0.5;
+    if (aspect > 1.6) bias = 0.85; else if (aspect > 1.3) bias = 0.65;
+    let offsetY = safeTop + (usableH - viewH) * bias;
+    offsetY = Math.max(safeTop, Math.min(offsetY, H - safeBottom - viewH));
+    offsetY = Math.round(offsetY);
+
+    const placeCanvas = (canvas, ctx) => {
+      if (ctx) ctx.imageSmoothingEnabled = false;
+      canvas.width = viewW;
+      canvas.height = viewH;
+      canvas.style.position = 'fixed';
+      canvas.style.width = viewW + 'px';
+      canvas.style.height = viewH + 'px';
+      canvas.style.left = offsetX + 'px';
+      canvas.style.top = offsetY + 'px';
+    };
+
+    placeCanvas(screen, ctx);
+    placeCanvas(crt, crtCtx);
+    placeCanvas(grain, grainCtx);
   }
   addEventListener('resize', fit);
   fit();
