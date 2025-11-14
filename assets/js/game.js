@@ -16,6 +16,10 @@ export function initGame() {
   const grainCtx = grain.getContext('2d');
   grainCtx.imageSmoothingEnabled = false;
 
+  let crtTexture = null;
+  let grainTextures = [];
+  let grainFrame = 0;
+
   const off = document.createElement('canvas');
   off.width = VIRT_W;
   off.height = VIRT_H;
@@ -71,6 +75,8 @@ export function initGame() {
     placeCanvas(screen, ctx);
     placeCanvas(crt, crtCtx);
     placeCanvas(grain, grainCtx);
+    rebuildCRTTexture(crt.width, crt.height);
+    rebuildGrainTextures(grain.width, grain.height);
   }
   addEventListener('resize', fit);
   fit();
@@ -855,35 +861,75 @@ export function initGame() {
     }
   }
 
+  function rebuildCRTTexture(width, height) {
+    if (width === 0 || height === 0) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const c = canvas.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    c.clearRect(0, 0, width, height);
+    const scanColor = 'rgba(32, 40, 68, 0.55)';
+    for (let y = 0; y < height; y += 2) {
+      c.fillStyle = scanColor;
+      c.fillRect(0, y, width, 1);
+    }
+    const gradient = c.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) / 1.1);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+    c.fillStyle = gradient;
+    c.fillRect(0, 0, width, height);
+    crtTexture = canvas;
+  }
+
+  function rebuildGrainTextures(width, height) {
+    grainTextures = [];
+    grainFrame = 0;
+    if (width === 0 || height === 0) return;
+    const layers = 4;
+    for (let i = 0; i < layers; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const c = canvas.getContext('2d');
+      const data = c.createImageData(width, height);
+      for (let p = 0; p < data.data.length; p += 4) {
+        const n = Math.random() * 36;
+        data.data[p] = n;
+        data.data[p + 1] = n;
+        data.data[p + 2] = n;
+        data.data[p + 3] = 40;
+      }
+      c.putImageData(data, 0, 0);
+      grainTextures.push(canvas);
+    }
+  }
+
   function drawCRT() {
     const w = crt.width;
     const h = crt.height;
-    const img = crtCtx.createImageData(w, h);
-    for (let y = 0; y < h; y++) {
-      const intensity = 0.05 * Math.sin(y * 0.6 + performance.now() * 0.01);
-      for (let x = 0; x < w; x++) {
-        const i = (y * w + x) * 4;
-        const scan = (y % 2 === 0) ? 20 : 0;
-        img.data[i] = scan;
-        img.data[i + 1] = scan;
-        img.data[i + 2] = scan;
-        img.data[i + 3] = 80 + intensity * 255;
-      }
+    if (!crtTexture || crtTexture.width !== w || crtTexture.height !== h) {
+      rebuildCRTTexture(w, h);
+      if (!crtTexture) return;
     }
-    crtCtx.putImageData(img, 0, 0);
+    crtCtx.clearRect(0, 0, w, h);
+    const pulse = 0.75 + Math.sin(performance.now() * 0.004) * 0.08;
+    crtCtx.globalAlpha = pulse;
+    crtCtx.drawImage(crtTexture, 0, 0);
+    crtCtx.globalAlpha = 1;
   }
 
   function drawGrain() {
     const w = grain.width;
     const h = grain.height;
-    const img = grainCtx.createImageData(w, h);
-    for (let i = 0; i < img.data.length; i += 4) {
-      const n = Math.random() * 24;
-      img.data[i] = n;
-      img.data[i + 1] = n;
-      img.data[i + 2] = n;
-      img.data[i + 3] = 20;
+    if (!grainTextures.length || grainTextures[0].width !== w || grainTextures[0].height !== h) {
+      rebuildGrainTextures(w, h);
+      if (!grainTextures.length) return;
     }
-    grainCtx.putImageData(img, 0, 0);
+    grainCtx.clearRect(0, 0, w, h);
+    grainCtx.globalAlpha = 0.35;
+    grainFrame = (grainFrame + 1) % grainTextures.length;
+    grainCtx.drawImage(grainTextures[grainFrame], 0, 0);
+    grainCtx.globalAlpha = 1;
   }
 }
